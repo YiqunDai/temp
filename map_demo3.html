@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2.5D中国地图组件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c1e3e 0%, #152642 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #4fc3f7;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+        }
+        
+        .subtitle {
+            color: #a0c8ff;
+            margin-bottom: 30px;
+        }
+        
+        .map-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .control-btn {
+            background: rgba(25, 50, 80, 0.8);
+            border: 1px solid rgba(0, 150, 255, 0.4);
+            color: #a0c8ff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-btn:hover {
+            background: rgba(0, 168, 255, 0.3);
+            color: #4fc3f7;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .map-view-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: rgba(10, 26, 45, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 150, 255, 0.2);
+        }
+        
+        .map-view {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            perspective: 1500px;
+            transition: transform 0.8s ease;
+        }
+        
+        .map-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .map-wrapper {
+            position: relative;
+            width: 80%;
+            height: 80%;
+        }
+        
+        /* 2.5D地图效果 */
+        #china-map {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform: rotateX(55deg) rotateZ(-15deg) scale(1.2);
+            transform-style: preserve-3d;
+            transition: transform 0.8s ease;
+        }
+        
+        .province {
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-origin: center;
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.3));
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .province:hover {
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.7));
+            transform: translateY(-8px) scale(1.05);
+            z-index: 100;
+        }
+        
+        .province.active {
+            filter: drop-shadow(0 0 25px rgba(0, 168, 255, 0.9));
+            transform: translateY(-10px) scale(1.08);
+            z-index: 200;
+        }
+        
+        .province-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            transform: translateZ(15px);
+            text-align: center;
+            white-space: nowrap;
+        }
+        
+        /* 省份地图视图 */
+        #province-map-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+            transition: all 0.8s ease;
+        }
+        
+        #province-map-view.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+        
+        .province-map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform: rotateX(55deg) rotateZ(0deg) scale(1.5);
+            transform-style: preserve-3d;
+        }
+        
+        .province-map {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+        
+        .city {
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform-origin: center;
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+        
+        .city:hover {
+            filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+            transform: translateY(-4px) scale(1.05);
+            z-index: 50;
+        }
+        
+        /* 地图信息面板 */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 250px;
+            z-index: 300;
+            border: 1px solid rgba(0, 168, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            transform: translateY(0);
+            transition: transform 0.5s ease;
+        }
+        
+        .info-panel.hidden {
+            transform: translateY(-20px);
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .info-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4fc3f7;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+            padding-bottom: 8px;
+        }
+        
+        .info-content {
+            font-size: 14px;
+            color: #bbdefb;
+            line-height: 1.5;
+        }
+        
+        .info-item {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            color: #a0c8ff;
+        }
+        
+        .info-value {
+            color: #00e5ff;
+            font-weight: bold;
+        }
+        
+        .back-button {
+            background: rgba(0, 168, 255, 0.3);
+            border: 1px solid rgba(0, 168, 255, 0.6);
+            color: #4fc3f7;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+        
+        .back-button:hover {
+            background: rgba(0, 168, 255, 0.5);
+            box-shadow: 0 0 15px rgba(0, 168, 255, 0.5);
+        }
+        
+        /* 图例 */
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 300;
+            border: 1px solid rgba(0, 168, 255, 0.3);
+            backdrop-filter: blur(5px);
+            min-width: 180px;
+        }
+        
+        .legend-title {
+            font-size: 14px;
+            color: #4fc3f7;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .legend-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #a0c8ff;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        /* 地图光晕效果 */
+        .map-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80%;
+            height: 80%;
+            background: radial-gradient(circle at center, rgba(79, 195, 247, 0.1) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .map-view-container {
+                height: 500px;
+            }
+            
+            .info-panel {
+                position: relative;
+                top: 0;
+                left: 0;
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            
+            .legend {
+                position: relative;
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                margin-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>2.5D 中国地图组件</h1>
+        <div class="subtitle">真实地图效果 | 支持省份下钻 | 纯CSS 3D实现</div>
+        
+        <div class="map-controls">
+            <button class="control-btn" id="reset-view">
+                <i class="fas fa-home"></i> 重置视图
+            </button>
+            <button class="control-btn" id="rotate-left">
+                <i class="fas fa-undo"></i> 向左旋转
+            </button>
+            <button class="control-btn" id="rotate-right">
+                <i class="fas fa-redo"></i> 向右旋转
+            </button>
+            <button class="control-btn" id="toggle-3d">
+                <i class="fas fa-cube"></i> 切换2D/2.5D
+            </button>
+            <button class="control-btn" id="zoom-in">
+                <i class="fas fa-search-plus"></i> 放大
+            </button>
+            <button class="control-btn" id="zoom-out">
+                <i class="fas fa-search-minus"></i> 缩小
+            </button>
+        </div>
+        
+        <div class="map-view-container">
+            <div class="map-glow"></div>
+            
+            <!-- 全国地图视图 -->
+            <div class="map-view" id="china-map-view">
+                <div class="map-layer">
+                    <div class="map-wrapper">
+                        <div id="china-map">
+                            <!-- 中国地图省份将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 省份地图视图 -->
+            <div class="map-view" id="province-map-view">
+                <div class="map-layer">
+                    <div class="map-wrapper">
+                        <div class="province-map-container">
+                            <div class="province-map" id="province-map">
+                                <!-- 省份地图内容将通过JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 信息面板 -->
+            <div class="info-panel" id="info-panel">
+                <div class="info-title" id="info-title">中国地图</div>
+                <div class="info-content" id="info-content">
+                    <div class="info-item">
+                        <span class="info-label">视图模式:</span>
+                        <span class="info-value">全国</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">已选择:</span>
+                        <span class="info-value" id="selected-province">无</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">省份数量:</span>
+                        <span class="info-value">34</span>
+                    </div>
+                    <button class="back-button" id="back-to-china">
+                        <i class="fas fa-arrow-left"></i> 返回中国地图
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 图例 -->
+            <div class="legend">
+                <div class="legend-title">图例说明</div>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ff5722;"></div>
+                        <span>直辖市/特别行政区</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ff9800;"></div>
+                        <span>东部沿海省份</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4fc3f7;"></div>
+                        <span>中部地区</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #a0c8ff;"></div>
+                        <span>西部地区</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 中国省份数据 - 使用真实的地理位置和形状近似
+        const chinaProvinces = [
+            { name: '北京', color: '#ff5722', x: 68, y: 28, width: 40, height: 40, type: 'rectangle', region: 'north', cities: ['北京市区', '通州', '昌平', '大兴', '顺义'] },
+            { name: '天津', color: '#ff5722', x: 70, y: 32, width: 35, height: 35, type: 'rectangle', region: 'north', cities: ['天津市区', '滨海新区', '南开区', '和平区'] },
+            { name: '河北', color: '#ff9800', x: 65, y: 35, width: 90, height: 80, type: 'polygon', region: 'north', cities: ['石家庄', '唐山', '秦皇岛', '邯郸', '保定', '张家口'] },
+            { name: '山西', color: '#ff9800', x: 60, y: 40, width: 60, height: 70, type: 'polygon', region: 'north', cities: ['太原', '大同', '阳泉', '长治', '晋城', '朔州'] },
+            { name: '内蒙古', color: '#a0c8ff', x: 45, y: 25, width: 150, height: 120, type: 'rectangle', region: 'north', cities: ['呼和浩特', '包头', '赤峰', '鄂尔多斯', '呼伦贝尔'] },
+            { name: '辽宁', color: '#ff9800', x: 75, y: 25, width: 70, height: 70, type: 'polygon', region: 'northeast', cities: ['沈阳', '大连', '鞍山', '抚顺', '本溪', '丹东'] },
+            { name: '吉林', color: '#a0c8ff', x: 80, y: 20, width: 70, height: 70, type: 'polygon', region: 'northeast', cities: ['长春', '吉林', '四平', '辽源', '通化', '白山'] },
+            { name: '黑龙江', color: '#a0c8ff', x: 85, y: 15, width: 80, height: 100, type: 'polygon', region: 'northeast', cities: ['哈尔滨', '齐齐哈尔', '鸡西', '鹤岗', '双鸭山', '大庆'] },
+            { name: '上海', color: '#ff5722', x: 75, y: 52, width: 35, height: 35, type: 'rectangle', region: 'east', cities: ['上海市区', '浦东新区', '黄浦区', '徐汇区', '长宁区'] },
+            { name: '江苏', color: '#ff9800', x: 73, y: 48, width: 60, height: 50, type: 'rectangle', region: 'east', cities: ['南京', '苏州', '无锡', '常州', '徐州', '南通'] },
+            { name: '浙江', color: '#ff9800', x: 74, y: 55, width: 55, height: 55, type: 'polygon', region: 'east', cities: ['杭州', '宁波', '温州', '绍兴', '湖州', '嘉兴'] },
+            { name: '安徽', color: '#4fc3f7', x: 70, y: 52, width: 55, height: 60, type: 'polygon', region: 'east', cities: ['合肥', '芜湖', '蚌埠', '淮南', '马鞍山', '淮北'] },
+            { name: '福建', color: '#ff9800', x: 74, y: 65, width: 50, height: 55, type: 'polygon', region: 'east', cities: ['福州', '厦门', '泉州', '漳州', '南平', '三明'] },
+            { name: '江西', color: '#4fc3f7', x: 72, y: 60, width: 55, height: 55, type: 'polygon', region: 'central', cities: ['南昌', '景德镇', '萍乡', '九江', '新余', '鹰潭'] },
+            { name: '山东', color: '#ff9800', x: 70, y: 38, width: 70, height: 60, type: 'polygon', region: 'east', cities: ['济南', '青岛', '淄博', '枣庄', '东营', '烟台'] },
+            { name: '河南', color: '#4fc3f7', x: 65, y: 45, width: 60, height: 60, type: 'rectangle', region: 'central', cities: ['郑州', '开封', '洛阳', '平顶山', '安阳', '鹤壁'] },
+            { name: '湖北', color: '#4fc3f7', x: 67, y: 55, width: 60, height: 60, type: 'polygon', region: 'central', cities: ['武汉', '黄石', '十堰', '宜昌', '襄阳', '鄂州'] },
+            { name: '湖南', color: '#4fc3f7', x: 66, y: 62, width: 60, height: 60, type: 'polygon', region: 'central', cities: ['长沙', '株洲', '湘潭', '衡阳', '邵阳', '岳阳'] },
+            { name: '广东', color: '#ff9800', x: 68, y: 75, width: 70, height: 60, type: 'polygon', region: 'south', cities: ['广州', '深圳', '珠海', '汕头', '佛山', '韶关'] },
+            { name: '广西', color: '#a0c8ff', x: 64, y: 75, width: 60, height: 70, type: 'polygon', region: 'south', cities: ['南宁', '柳州', '桂林', '梧州', '北海', '防城港'] },
+            { name: '海南', color: '#ff9800', x: 65, y: 85, width: 40, height: 40, type: 'rectangle', region: 'south', cities: ['海口', '三亚', '三沙', '儋州', '五指山'] },
+            { name: '重庆', color: '#ff5722', x: 60, y: 58, width: 40, height: 40, type: 'rectangle', region: 'southwest', cities: ['重庆市区', '万州区', '涪陵区', '渝中区', '大渡口区'] },
+            { name: '四川', color: '#a0c8ff', x: 58, y: 55, width: 80, height: 90, type: 'polygon', region: 'southwest', cities: ['成都', '自贡', '攀枝花', '泸州', '德阳', '绵阳'] },
+            { name: '贵州', color: '#a0c8ff', x: 62, y: 65, width: 60, height: 55, type: 'polygon', region: 'southwest', cities: ['贵阳', '六盘水', '遵义', '安顺', '毕节', '铜仁'] },
+            { name: '云南', color: '#a0c8ff', x: 58, y: 70, width: 70, height: 80, type: 'polygon', region: 'southwest', cities: ['昆明', '曲靖', '玉溪', '保山', '昭通', '丽江'] },
+            { name: '西藏', color: '#a0c8ff', x: 50, y: 55, width: 100, height: 120, type: 'rectangle', region: 'west', cities: ['拉萨', '日喀则', '昌都', '林芝', '山南', '那曲'] },
+            { name: '陕西', color: '#4fc3f7', x: 60, y: 45, width: 60, height: 70, type: 'polygon', region: 'northwest', cities: ['西安', '铜川', '宝鸡', '咸阳', '渭南', '延安'] },
+            { name: '甘肃', color: '#a0c8ff', x: 55, y: 40, width: 80, height: 100, type: 'polygon', region: 'northwest', cities: ['兰州', '嘉峪关', '金昌', '白银', '天水', '武威'] },
+            { name: '青海', color: '#a0c8ff', x: 52, y: 48, width: 100, height: 100, type: 'rectangle', region: 'west', cities: ['西宁', '海东', '海北', '黄南', '海南州', '果洛'] },
+            { name: '宁夏', color: '#a0c8ff', x: 56, y: 38, width: 40, height: 40, type: 'rectangle', region: 'northwest', cities: ['银川', '石嘴山', '吴忠', '固原', '中卫'] },
+            { name: '新疆', color: '#a0c8ff', x: 35, y: 35, width: 120, height: 140, type: 'rectangle', region: 'west', cities: ['乌鲁木齐', '克拉玛依', '吐鲁番', '哈密', '昌吉', '伊犁'] },
+            { name: '台湾', color: '#ff9800', x: 78, y: 65, width: 30, height: 50, type: 'rectangle', region: 'east', cities: ['台北', '高雄', '台中', '台南', '新北', '桃园'] },
+            { name: '香港', color: '#ff5722', x: 71, y: 75, width: 15, height: 15, type: 'rectangle', region: 'south', cities: ['香港岛', '九龙', '新界'] },
+            { name: '澳门', color: '#ff5722', x: 70, y: 75, width: 12, height: 12, type: 'rectangle', region: 'south', cities: ['澳门半岛', '氹仔', '路环'] }
+        ];
+        
+        // 地图状态
+        let currentView = 'china'; // 'china' 或 'province'
+        let selectedProvince = null;
+        let rotationAngle = -15;
+        let scaleFactor = 1.2;
+        let is2DView = false;
+        
+        // 初始化地图
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化中国地图
+            initChinaMap();
+            
+            // 绑定控制按钮事件
+            document.getElementById('reset-view').addEventListener('click', resetView);
+            document.getElementById('rotate-left').addEventListener('click', rotateLeft);
+            document.getElementById('rotate-right').addEventListener('click', rotateRight);
+            document.getElementById('toggle-3d').addEventListener('click', toggle2D3D);
+            document.getElementById('zoom-in').addEventListener('click', zoomIn);
+            document.getElementById('zoom-out').addEventListener('click', zoomOut);
+            document.getElementById('back-to-china').addEventListener('click', backToChina);
+            
+            // 初始更新信息面板
+            updateInfoPanel();
+        });
+        
+        // 初始化中国地图
+        function initChinaMap() {
+            const chinaMap = document.getElementById('china-map');
+            
+            // 清空地图容器
+            chinaMap.innerHTML = '';
+            
+            // 添加省份
+            chinaProvinces.forEach(province => {
+                const provinceElement = createProvinceElement(province);
+                chinaMap.appendChild(provinceElement);
+            });
+            
+            // 更新地图变换
+            updateMapTransform();
+        }
+        
+        // 创建省份元素
+        function createProvinceElement(province) {
+            const provinceDiv = document.createElement('div');
+            provinceDiv.className = 'province';
+            provinceDiv.dataset.province = province.name;
+            
+            // 设置位置和大小
+            provinceDiv.style.left = `${province.x}%`;
+            provinceDiv.style.top = `${province.y}%`;
+            provinceDiv.style.width = `${province.width}px`;
+            provinceDiv.style.height = `${province.height}px`;
+            provinceDiv.style.backgroundColor = province.color;
+            
+            // 设置形状
+            if (province.type === 'polygon') {
+                provinceDiv.style.borderRadius = getProvinceBorderRadius(province.name);
+                provinceDiv.style.clipPath = getProvinceClipPath(province.name);
+            }
+            
+            // 添加3D深度效果
+            const depth = Math.random() * 15 + 5;
+            provinceDiv.style.transform = `translateZ(${depth}px)`;
+            
+            // 添加悬停效果
+            provinceDiv.addEventListener('mouseenter', function(e) {
+                highlightProvince(province.name);
+            });
+            
+            provinceDiv.addEventListener('mouseleave', function() {
+                if (selectedProvince !== province.name) {
+                    unhighlightProvince(province.name);
+                }
+            });
+            
+            // 添加点击事件
+            provinceDiv.addEventListener('click', function() {
+                selectProvince(province);
+            });
+            
+            // 添加省份标签
+            const label = document.createElement('div');
+            label.className = 'province-label';
+            label.textContent = province.name;
+            label.style.cssText = `
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) translateZ(20px);
+            `;
+            provinceDiv.appendChild(label);
+            
+            return provinceDiv;
+        }
+        
+        // 获取省份边框圆角（模拟不规则形状）
+        function getProvinceBorderRadius(provinceName) {
+            const borderRadiusMap = {
+                '北京': '30% 70% 70% 30% / 30% 30% 70% 70%',
+                '上海': '50%',
+                '江苏': '40%',
+                '浙江': '30% 70% 70% 30% / 30% 70% 70% 30%',
+                '广东': '40% 60% 60% 40% / 40% 60% 60% 40%',
+                '山东': '50% 50% 50% 50% / 50% 50% 50% 50%',
+                '四川': '50% 50% 50% 50% / 60% 60% 40% 40%',
+                '云南': '30% 70% 70% 30% / 30% 70% 70% 30%',
+                '新疆': '20%',
+                '西藏': '10%',
+                '内蒙古': '10% 30% 30% 10% / 10% 10% 30% 30%',
+                '黑龙江': '40% 60% 60% 40% / 40% 40% 60% 60%'
+            };
+            
+            return borderRadiusMap[provinceName] || '20% 80% 80% 20% / 20% 80% 80% 20%';
+        }
+        
+        // 获取省份裁剪路径（模拟真实形状）
+        function getProvinceClipPath(provinceName) {
+            const clipPathMap = {
+                '广东': 'polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%)',
+                '台湾': 'polygon(0% 20%, 100% 0%, 100% 80%, 0% 100%)',
+                '海南': 'polygon(0% 30%, 100% 0%, 100% 70%, 0% 100%)',
+                '云南': 'polygon(0% 20%, 100% 0%, 90% 80%, 10% 100%)',
+                '辽宁': 'polygon(0% 0%, 100% 20%, 80% 100%, 20% 80%)',
+                '山东': 'polygon(0% 20%, 100% 0%, 80% 80%, 20% 100%)',
+                '江苏': 'polygon(0% 0%, 100% 20%, 80% 100%, 20% 80%)',
+                '浙江': 'polygon(0% 20%, 100% 0%, 80% 80%, 20% 100%)'
+            };
+            
+            return clipPathMap[provinceName] || null;
+        }
+        
+        // 高亮省份
+        function highlightProvince(provinceName) {
+            const provinceElement = document.querySelector(`.province[data-province="${provinceName}"]`);
+            if (provinceElement && provinceName !== selectedProvince) {
+                provinceElement.classList.add('active');
+            }
+            
+            // 更新信息面板
+            document.getElementById('selected-province').textContent = provinceName;
+        }
+        
+        // 取消高亮省份
+        function unhighlightProvince(provinceName) {
+            const provinceElement = document.querySelector(`.province[data-province="${provinceName}"]`);
+            if (provinceElement && provinceName !== selectedProvince) {
+                provinceElement.classList.remove('active');
+            }
+        }
+        
+        // 选择省份
+        function selectProvince(province) {
+            selectedProvince = province.name;
+            
+            // 更新所有省份的高亮状态
+            document.querySelectorAll('.province').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 高亮选中的省份
+            const provinceElement = document.querySelector(`.province[data-province="${province.name}"]`);
+            if (provinceElement) {
+                provinceElement.classList.add('active');
+            }
+            
+            // 切换到省份地图
+            switchToProvinceMap(province);
+            
+            // 更新信息面板
+            updateInfoPanel();
+        }
+        
+        // 切换到省份地图
+        function switchToProvinceMap(province) {
+            currentView = 'province';
+            
+            // 隐藏中国地图
+            document.getElementById('china-map-view').style.opacity = '0';
+            document.getElementById('china-map-view').style.pointerEvents = 'none';
+            
+            // 显示省份地图
+            document.getElementById('province-map-view').classList.add('active');
+            
+            // 生成省份地图
+            generateProvinceMap(province);
+        }
+        
+        // 生成省份地图
+        function generateProvinceMap(province) {
+            const provinceMap = document.getElementById('province-map');
+            
+            // 清空省份地图
+            provinceMap.innerHTML = '';
+            
+            // 创建省份轮廓
+            const outline = document.createElement('div');
+            outline.style.cssText = `
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                background: rgba(10, 26, 45, 0.3);
+                border-radius: 15px;
+                border: 2px solid ${province.color};
+                transform: translateZ(-10px);
+            `;
+            provinceMap.appendChild(outline);
+            
+            // 添加城市
+            const cities = province.cities || [];
+            const cityColors = ['#ff5722', '#ff9800', '#4fc3f7', '#a0c8ff', '#9e9e9e'];
+            
+            cities.forEach((city, index) => {
+                const cityElement = document.createElement('div');
+                cityElement.className = 'city';
+                cityElement.textContent = city;
+                cityElement.title = city;
+                
+                // 随机位置（在实际应用中应使用真实坐标）
+                const left = 10 + Math.random() * 80;
+                const top = 10 + Math.random() * 80;
+                const size = 35 + Math.random() * 25;
+                const depth = Math.random() * 10 + 5;
+                
+                cityElement.style.cssText = `
+                    left: ${left}%;
+                    top: ${top}%;
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: ${cityColors[index % cityColors.length]};
+                    border-radius: ${index % 3 === 0 ? '50%' : '15%'};
+                    transform: translateZ(${depth}px);
+                `;
+                
+                provinceMap.appendChild(cityElement);
+            });
+            
+            // 添加省份名称
+            const nameLabel = document.createElement('div');
+            nameLabel.textContent = province.name;
+            nameLabel.style.cssText = `
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) translateZ(25px);
+                font-size: 32px;
+                font-weight: bold;
+                color: ${province.color};
+                text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+                pointer-events: none;
+            `;
+            provinceMap.appendChild(nameLabel);
+        }
+        
+        // 返回中国地图
+        function backToChina() {
+            currentView = 'china';
+            selectedProvince = null;
+            
+            // 显示中国地图
+            document.getElementById('china-map-view').style.opacity = '1';
+            document.getElementById('china-map-view').style.pointerEvents = 'all';
+            
+            // 隐藏省份地图
+            document.getElementById('province-map-view').classList.remove('active');
+            
+            // 移除所有省份的高亮
+            document.querySelectorAll('.province').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 更新信息面板
+            updateInfoPanel();
+        }
+        
+        // 更新信息面板
+        function updateInfoPanel() {
+            const infoTitle = document.getElementById('info-title');
+            const selectedProvinceElement = document.getElementById('selected-province');
+            
+            if (currentView === 'china') {
+                infoTitle.textContent = '中国地图';
+                selectedProvinceElement.textContent = selectedProvince || '无';
+            } else {
+                infoTitle.textContent = `${selectedProvince}地图`;
+                selectedProvinceElement.textContent = selectedProvince;
+            }
+        }
+        
+        // 重置视图
+        function resetView() {
+            rotationAngle = -15;
+            scaleFactor = 1.2;
+            updateMapTransform();
+        }
+        
+        // 向左旋转
+        function rotateLeft() {
+            rotationAngle -= 10;
+            updateMapTransform();
+        }
+        
+        // 向右旋转
+        function rotateRight() {
+            rotationAngle += 10;
+            updateMapTransform();
+        }
+        
+        // 切换2D/2.5D视图
+        function toggle2D3D() {
+            is2DView = !is2DView;
+            const button = document.getElementById('toggle-3d');
+            
+            if (is2DView) {
+                // 切换到2D视图
+                button.innerHTML = '<i class="fas fa-cube"></i> 切换2.5D';
+            } else {
+                // 切换到2.5D视图
+                button.innerHTML = '<i class="fas fa-cube"></i> 切换2D';
+            }
+            
+            updateMapTransform();
+        }
+        
+        // 放大
+        function zoomIn() {
+            scaleFactor = Math.min(scaleFactor + 0.1, 2.0);
+            updateMapTransform();
+        }
+        
+        // 缩小
+        function zoomOut() {
+            scaleFactor = Math.max(scaleFactor - 0.1, 0.8);
+            updateMapTransform();
+        }
+        
+        // 更新地图变换
+        function updateMapTransform() {
+            const chinaMap = document.getElementById('china-map');
+            const provinceMapContainer = document.querySelector('.province-map-container');
+            
+            if (is2DView) {
+                chinaMap.style.transform = `rotateX(0deg) rotateZ(0deg) scale(${scaleFactor})`;
+                if (provinceMapContainer) {
+                    provinceMapContainer.style.transform = `rotateX(0deg) rotateZ(0deg) scale(${scaleFactor * 1.2})`;
+                }
+            } else {
+                chinaMap.style.transform = `rotateX(55deg) rotateZ(${rotationAngle}deg) scale(${scaleFactor})`;
+                if (provinceMapContainer) {
+                    provinceMapContainer.style.transform = `rotateX(55deg) rotateZ(0deg) scale(${scaleFactor * 1.2})`;
+                }
+            }
+        }
+        
+        // 添加Font Awesome图标
+        const faScript = document.createElement('script');
+        faScript.src = 'https://kit.fontawesome.com/a076d05399.js';
+        document.head.appendChild(faScript);
+    </script>
+</body>
+</html>
